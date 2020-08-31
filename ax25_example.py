@@ -18,3 +18,6 @@ created_packet = ax25_create_frame(dst_callsign, dst_ssid, src_callsign, src_ssi
 for byte in created_packet:
     print('{:02x}'.format(byte).upper(), end="")
 print()
+
+disassembled_frame = ax25_disassemble_frame(created_packet)
+print(disassembled_frame)

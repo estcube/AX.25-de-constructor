@@ -291,3 +291,79 @@ def ax25_create_frame(dst: str, dst_ssid: int, src: str, src_ssid: int, ctrl_typ
 
     return ax25_frame
 
+def ax25_disassemble_frame(ax25_frame: bytearray) -> dict:
+    """
+    The function expects an input in the form of a valid AX.25 bytearray i.e 0x7E, ctrl, (optional) PID, INFO, FCS, 0x7E
+    It takes the AX.25 bytearray and disassembles it into individual pieces and converts the callsigns into human
+    readable form.
+
+    Parameters:
+    ax25_frame: An AX.25 frame in the form of a bytearray
+
+    Returns:
+    dictionary that contains the disassembled AX.25 frame pieces
+    """
+
+    # A valid frame starts with a 0x7E
+    if ax25_frame[0] != 0x7E or ax25_frame[-1] != 0x7E:
+        raise ValueError("A valid AX.25 frame starts and ends with a 0x7E flag. Currently the first byte is %i and "
+            "the last byte is %i." % ax25_frame[0], ax25_frame[-1])
+
+    current_frame_idx = 1
+    disassembled_frame = { }
+
+    # The address field of all frames consists of a destination, source
+    # and (optionally) two Layer 2 repeater subfields
+    for i in range(4):
+        callsign, _, is_last, _ = ax25_decode_address( ax25_frame[current_frame_idx: current_frame_idx + 7] )
+        current_frame_idx += 7
+
+        if i == 0:
+            if is_last:
+                raise ValueError("Last bit of dst SSID byte shouldn't be 1!")
+            else:
+                disassembled_frame["dst_callsign"] = callsign
+                disassembled_frame["dst_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+
+        elif i == 1:
+            if is_last:
+                disassembled_frame["src_callsign"] = callsign
+                disassembled_frame["src_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+                break
+            else:
+                disassembled_frame["repeater1_callsign"] = callsign
+                disassembled_frame["repeater1_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+
+        elif i == 2:
+            if is_last:
+                disassembled_frame["src_callsign"] = callsign
+                disassembled_frame["src_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+                break
+            else:
+                disassembled_frame["repeater2_callsign"] = callsign
+                disassembled_frame["repeater2_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+
+        else:
+            if is_last:
+                disassembled_frame["src_callsign"] = callsign
+                disassembled_frame["src_ssid_byte"] = ax25_frame[current_frame_idx - 1]
+                break
+            else:
+                raise ValueError("Last bit wasn't set but %i is the 4th address field!" % ax25_frame[ (i + 1) * 6] )
+
+    # Parse control field
+    disassembled_frame["ctrl_field"] = ax25_frame[current_frame_idx]
+    current_frame_idx += 1
+
+    # Check the frame is a I or a U frame
+    if not (disassembled_frame["ctrl_field"] << 6) or (disassembled_frame["ctrl_field"] & AX25_Ctrl_Fields.AX25_CTRL_UI.value):
+        disassembled_frame["pid_field"] = ax25_frame[current_frame_idx]
+        current_frame_idx += 1
+
+    # Get the info field
+    disassembled_frame["info"] = ax25_frame[current_frame_idx:-3]
+
+    # Get the FCS
+    disassembled_frame["fcs"] = ax25_frame[-3:-1]
+
+    return disassembled_frame
