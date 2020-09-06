@@ -73,7 +73,7 @@ def ax25_crc_16_x25(packet: bytearray):
     # Check crcmod documentation if you want to know why the intial values are given like this
     crc_fun = crcmod.mkCrcFun(0x11021, initCrc=0x0, rev=True, xorOut=0xFFFF)
 
-    return crc_fun(packet).to_bytes(2, byteorder='big')
+    return crc_fun(packet).to_bytes(2, byteorder='little')
 
 
 def ax25_encode_pid_field(ctrl_type: AX25_Ctrl_Fields, pid_field: AX25_PID_Fields) -> bytes:
