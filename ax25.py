@@ -291,25 +291,11 @@ def ax25_create_frame(dst: str, dst_ssid: int, src: str, src_ssid: int, ctrl_typ
 
     return ax25_frame
 
-def ax25_disassemble_frame(ax25_frame: bytearray) -> dict:
+def internal_disassembly(ax25_frame: bytearray, current_frame_idx: int ) -> dict:
     """
-    The function expects an input in the form of a valid AX.25 bytearray i.e 0x7E, ctrl, (optional) PID, INFO, FCS, 0x7E
-    It takes the AX.25 bytearray and disassembles it into individual pieces and converts the callsigns into human
-    readable form.
-
-    Parameters:
-    ax25_frame: An AX.25 frame in the form of a bytearray
-
-    Returns:
-    dictionary that contains the disassembled AX.25 frame pieces
+    Meant for internal use by the ax.25 library only!
     """
 
-    # A valid frame starts with a 0x7E
-    if ax25_frame[0] != 0x7E or ax25_frame[-1] != 0x7E:
-        raise ValueError("A valid AX.25 frame starts and ends with a 0x7E flag. Currently the first byte is %i and "
-            "the last byte is %i." % ax25_frame[0], ax25_frame[-1])
-
-    current_frame_idx = 1
     disassembled_frame = { }
 
     # The address field of all frames consists of a destination, source
@@ -360,10 +346,55 @@ def ax25_disassemble_frame(ax25_frame: bytearray) -> dict:
         disassembled_frame["pid_field"] = ax25_frame[current_frame_idx]
         current_frame_idx += 1
 
+    return disassembled_frame, current_frame_idx
+
+def ax25_disassemble_raw_frame(ax25_frame: bytearray) -> dict:
+    """
+    The function expects an input in the form of a valid AX.25 bytearray i.e 0x7E, ctrl, (optional) PID, INFO, FCS, 0x7E
+    It takes the AX.25 bytearray and disassembles it into individual pieces and converts the callsigns into human
+    readable form.
+
+    Parameters:
+    ax25_frame: An AX.25 frame in the form of a bytearray
+
+    Returns:
+    dictionary that contains the disassembled AX.25 frame pieces
+    """
+
+    # A valid frame starts with a 0x7E
+    if ax25_frame[0] != 0x7E or ax25_frame[-1] != 0x7E:
+        raise ValueError("A valid AX.25 frame starts and ends with a 0x7E flag. Currently the first byte is %i and "
+            "the last byte is %i." % ax25_frame[0], ax25_frame[-1])
+
+    disassembled_frame, current_frame_idx = internal_disassembly(ax25_frame, 1)
+
     # Get the info field
     disassembled_frame["info"] = ax25_frame[current_frame_idx:-3]
 
     # Get the FCS
     disassembled_frame["fcs"] = ax25_frame[-3:-1]
+
+    return disassembled_frame
+
+def ax25_disassemble_kiss_frame(ax25_frame: bytearray) -> dict:
+    """
+    The function expects an input in the form of a TNC outputted AX.25 bytearray i.e 0x7E, ctrl, (optional) PID, INFO, 0x7E
+    It takes the AX.25 bytearray and disassembles it into individual pieces and converts the callsigns into human
+    readable form.
+
+    Parameters:
+    ax25_frame: An AX.25 frame in the form of a bytearray
+
+    Returns:
+    dictionary that contains the disassembled AX.25 frame pieces
+    """
+
+    disassembled_frame, current_frame_idx = internal_disassembly(ax25_frame, 1)
+
+    # Get the info field
+    disassembled_frame["info"] = ax25_frame[current_frame_idx:]
+
+    # Get the FCS
+    disassembled_frame["fcs"] = "N/A"
 
     return disassembled_frame

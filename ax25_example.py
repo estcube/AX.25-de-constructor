@@ -19,5 +19,5 @@ for byte in created_packet:
     print('{:02x}'.format(byte).upper(), end="")
 print()
 
-disassembled_frame = ax25_disassemble_frame(created_packet)
+disassembled_frame = ax25_disassemble_raw_frame(created_packet)
 print(disassembled_frame)
